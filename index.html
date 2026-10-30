@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
+  <title>HumourDeMoi - Galerie de Médias Drôles</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header class="navbar">
+    <div class="logo">
+      <span class="logo-icon">😂</span>
+      <span class="logo-text">HumourDeMoi</span>
+    </div>
+
+    <div class="nav-controls">
+      <button class="btn btn-secondary" onclick="openModal('suggestModal')">
+        💡 Proposer un média
+      </button>
+      <button class="btn btn-primary" id="adminToggleBtn" onclick="openAdmin()">
+        🔒 Administration
+      </button>
+    </div>
+  </header>
+
+  <!-- Catégories Accueil -->
+  <nav class="category-tabs" id="categoryTabsContainer"></nav>
+
+  <!-- Filtres -->
+  <section class="filters-container">
+    <div class="filter-group">
+      <label for="filterCategory">Catégorie :</label>
+      <select id="filterCategory" onchange="onCategoryFilterChange()">
+        <option value="all">Toutes</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="filterSubCategory">Sous-catégorie :</label>
+      <select id="filterSubCategory" onchange="renderFeed()">
+        <option value="all">Toutes</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="filterMediaType">Format :</label>
+      <select id="filterMediaType" onchange="renderFeed()">
+        <option value="all">Tous</option>
+        <option value="image">Images / GIFs</option>
+        <option value="video">Vidéos</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- Grille -->
+  <main class="feed-grid" id="mediaFeed"></main>
+
+  <!-- Visionneuse Plein Écran (Lightbox) -->
+  <div class="lightbox-overlay" id="imageLightbox">
+    <div class="lightbox-toolbar">
+      <span id="lightboxTitle" class="lightbox-title"></span>
+      <div class="lightbox-actions">
+        <button class="lightbox-btn" onclick="zoomImage(0.25)" title="Zoom avant">🔍+</button>
+        <button class="lightbox-btn" onclick="zoomImage(-0.25)" title="Zoom arrière">🔍-</button>
+        <button class="lightbox-btn" onclick="resetZoom()" title="Taille réelle">1:1</button>
+        <button class="lightbox-btn" onclick="toggleFullScreen()" title="Plein écran">⛶</button>
+        <button class="lightbox-btn close" onclick="closeLightbox()">&times;</button>
+      </div>
+    </div>
+    <div class="lightbox-body" onwheel="handleWheelZoom(event)">
+      <img id="lightboxImg" src="" alt="Agrandissement">
+    </div>
+  </div>
+
+  <!-- MODAL : Proposition Visiteurs (Upload OU Lien) -->
+  <div class="modal-overlay" id="suggestModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Partager un contenu drôle</h3>
+        <button class="close-btn" onclick="closeModal('suggestModal')">&times;</button>
+      </div>
+      <form id="suggestForm" onsubmit="handleUserSuggestion(event)">
+        <label for="suggestTitleInput">Titre / Description</label>
+        <input type="text" id="suggestTitleInput" required placeholder="Ex: Regardez ce chat !">
+
+        <div class="input-toggle-group">
+          <label class="radio-label">
+            <input type="radio" name="suggestSourceType" value="file" checked onchange="toggleSourceInput('suggest', 'file')"> Téléverser un fichier
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="suggestSourceType" value="url" onchange="toggleSourceInput('suggest', 'url')"> Lien Web
+          </label>
+        </div>
+
+        <!-- Fichier Local -->
+        <div id="suggestFileInputBlock">
+          <label>Sélectionner une image ou une vidéo (jpg, png, gif, mp4, mov, avi...)</label>
+          <input type="file" id="suggestFileInput" accept="image/*,video/*">
+        </div>
+
+        <!-- Lien Web -->
+        <div id="suggestUrlInputBlock" class="hidden">
+          <label for="suggestUrlInput">Lien direct de l'image ou vidéo</label>
+          <input type="url" id="suggestUrlInput" placeholder="https://exemple.com/meme.jpg">
+        </div>
+
+        <button type="submit" class="btn btn-primary full-width" style="margin-top: 15px;">
+          Envoyer pour validation
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL : Connexion Admin -->
+  <div class="modal-overlay" id="adminLoginModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Connexion Administrateur</h3>
+        <button class="close-btn" onclick="closeModal('adminLoginModal')">&times;</button>
+      </div>
+      <form onsubmit="handleAdminLogin(event)">
+        <label for="adminPasswordInput">Mot de passe</label>
+        <input type="password" id="adminPasswordInput" placeholder="Entrez le mot de passe" required>
+        <button type="submit" class="btn btn-primary full-width" style="margin-top: 15px;">
+          Se connecter
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL : Tableau de Bord Admin -->
+  <div class="modal-overlay" id="adminDashboardModal">
+    <div class="modal wide">
+      <div class="modal-header">
+        <h3>Tableau de Bord Administrateur</h3>
+        <button class="close-btn" onclick="closeModal('adminDashboardModal')">&times;</button>
+      </div>
+      
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab(event, 'addMediaTab')">Ajouter un média</button>
+        <button class="tab-btn" onclick="switchTab(event, 'managePostsTab')">
+          Gérer les publications (<span id="postCount">0</span>)
+        </button>
+        <button class="tab-btn" onclick="switchTab(event, 'categoriesTab')">Gérer les catégories</button>
+        <button class="tab-btn" onclick="switchTab(event, 'submissionsTab')">
+          Suggestions (<span id="submissionCount">0</span>)
+        </button>
+      </div>
+
+      <!-- Onglet 1 : Ajouter un Média -->
+      <div class="tab-content" id="addMediaTab">
+        <form onsubmit="handleAdminAddMedia(event)">
+          <div class="grid-2">
+            <div>
+              <label for="adminTitle">Titre</label>
+              <input type="text" id="adminTitle" required placeholder="Titre de la publication">
+            </div>
+            <div>
+              <label>Source du média</label>
+              <div class="input-toggle-group">
+                <label class="radio-label">
+                  <input type="radio" name="adminSourceType" value="file" checked onchange="toggleSourceInput('admin', 'file')"> Fichier
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="adminSourceType" value="url" onchange="toggleSourceInput('admin', 'url')"> Lien
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div id="adminFileInputBlock">
+            <label>Sélectionner un fichier (Images: JPG, PNG, GIF, WebP / Vidéos: MP4, WebM, AVI, MOV, MKV)</label>
+            <input type="file" id="adminFileInput" accept="image/*,video/*">
+          </div>
+
+          <div id="adminUrlInputBlock" class="hidden">
+            <label for="adminUrl">Lien direct de l'image ou vidéo (YouTube, Imgur, direct .mp4...)</label>
+            <input type="url" id="adminUrl" placeholder="https://...">
+          </div>
+
+          <div class="grid-2" style="margin-top: 10px;">
+            <div>
+              <label for="adminCat">Catégorie</label>
+              <select id="adminCat" onchange="populateAdminSubcategories()"></select>
+            </div>
+            <div>
+              <label for="adminSubcat">Sous-catégorie</label>
+              <select id="adminSubcat"></select>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Publier sur le site</button>
+        </form>
+      </div>
+
+      <!-- Onglet 2 : Supprimer des Publications -->
+      <div class="tab-content hidden" id="managePostsTab">
+        <h4>Publications actuellement en ligne</h4>
+        <div id="adminPostsList" class="submission-list"></div>
+      </div>
+
+      <!-- Onglet 3 : Catégories -->
+      <div class="tab-content hidden" id="categoriesTab">
+        <h4>Créer une nouvelle catégorie</h4>
+        <div class="inline-form">
+          <input type="text" id="newCatInput" placeholder="Ex: Animaux">
+          <button class="btn btn-secondary" onclick="addCategory()">Créer</button>
+        </div>
+
+        <h4 style="margin-top: 25px;">Ajouter une sous-catégorie</h4>
+        <div class="inline-form">
+          <select id="parentCatSelect"></select>
+          <input type="text" id="newSubCatInput" placeholder="Ex: Chiens">
+          <button class="btn btn-secondary" onclick="addSubCategory()">Ajouter</button>
+        </div>
+      </div>
+
+      <!-- Onglet 4 : Suggestions -->
+      <div class="tab-content hidden" id="submissionsTab">
+        <div id="submissionsList" class="submission-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
